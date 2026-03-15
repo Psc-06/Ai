@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
-import { Monitor, ChevronDown, ChevronRight, AlertTriangle, Shield, Server, Globe, Loader2, Activity } from 'lucide-react';
+import { Monitor, ChevronDown, AlertTriangle, Shield, Server, Globe, Loader2, Activity, Radar, ShieldAlert, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const SEVERITY_STYLES = {
@@ -215,6 +215,18 @@ export default function ScanResults({ scanId, data, loading }) {
   const hosts = data.hosts || [];
   const totalPorts = hosts.reduce((s, h) => s + (h.ports?.length ?? 0), 0);
   const totalCves = hosts.reduce((s, h) => s + (h.ports || []).reduce((ps, p) => ps + (p.cves?.length ?? 0), 0), 0);
+  const intelligence = data.port_intelligence || {};
+  const riskSummary = intelligence.risk_summary || {};
+  const severitySummary = riskSummary.severity_summary || {};
+  const networkSecurityScore = Number(riskSummary.network_security_score ?? 100);
+  const findingPriority = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+  const topFindings = [...(intelligence.findings || [])]
+    .sort((a, b) => {
+      const severityDiff = (findingPriority[b.severity] || 0) - (findingPriority[a.severity] || 0);
+      if (severityDiff !== 0) return severityDiff;
+      return Number(b.score || 0) - Number(a.score || 0);
+    })
+    .slice(0, 4);
   
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -225,8 +237,8 @@ export default function ScanResults({ scanId, data, loading }) {
     <div className="w-full space-y-8 pb-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
         <div>
-          <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-            Reconnaissance Report
+          <h2 className="bg-gradient-to-r from-slate-100 to-cyan-300 bg-clip-text text-3xl font-bold text-transparent">
+            Exposure Report
           </h2>
           <p className="text-emerald-400/80 text-sm mt-2 font-mono flex items-center gap-2">
             <Activity className="h-4 w-4" />
@@ -235,8 +247,8 @@ export default function ScanResults({ scanId, data, loading }) {
         </div>
         {data.timestamp && (
           <div className="text-right">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Time of Scan</p>
-            <p className="font-mono text-sm text-slate-300 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 inline-block">
+            <p className="mb-1 text-xs font-bold uppercase tracking-widest text-slate-500">Time of Scan</p>
+            <p className="inline-block rounded-lg border border-slate-300/15 bg-slate-900/40 px-3 py-1.5 font-mono text-sm text-slate-300">
               {new Date(data.timestamp).toLocaleString()}
             </p>
           </div>
@@ -263,7 +275,7 @@ export default function ScanResults({ scanId, data, loading }) {
           <motion.div 
             variants={cardVariants}
             key={label} 
-            className={`bg-zinc-900/40 border border-white/10 rounded-2xl p-6 relative overflow-hidden backdrop-blur-md group ${glow}`}
+            className={`panel-surface group relative overflow-hidden rounded-2xl p-6 ${glow}`}
           >
             <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/5 rounded-full blur-2xl group-hover:bg-white/10 transition-colors" />
             <p className="text-xs uppercase font-bold tracking-widest text-slate-500 mb-2">{label}</p>
@@ -271,6 +283,91 @@ export default function ScanResults({ scanId, data, loading }) {
           </motion.div>
         ))}
       </motion.div>
+
+      {/* Risk intelligence */}
+      {(intelligence.findings || []).length > 0 && (
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 lg:grid-cols-3 gap-5"
+        >
+          <motion.div variants={cardVariants} className="panel-surface rounded-2xl p-6 lg:col-span-1 relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-cyan-400/10 blur-3xl" />
+            <div className="flex items-center gap-2 mb-4">
+              <Radar className="h-4 w-4 text-cyan-300" />
+              <p className="hud-label">Risk Pulse</p>
+            </div>
+            <p className="text-sm text-slate-400">Network security score</p>
+            <p className="mt-1 text-5xl font-black tracking-tight text-cyan-200">{networkSecurityScore}</p>
+            <div className="mt-4 h-2 w-full rounded-full bg-slate-800/80 overflow-hidden border border-slate-600/20">
+              <div
+                className={`h-full transition-all duration-700 ${networkSecurityScore >= 80 ? 'bg-emerald-400' : networkSecurityScore >= 60 ? 'bg-amber-400' : 'bg-rose-400'}`}
+                style={{ width: `${Math.max(0, Math.min(100, networkSecurityScore))}%` }}
+              />
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl border border-red-400/20 bg-red-500/10 p-3">
+                <p className="text-xs text-red-300/80 uppercase tracking-wider font-semibold">Critical</p>
+                <p className="mt-1 text-2xl font-bold text-red-300">{severitySummary.Critical || 0}</p>
+              </div>
+              <div className="rounded-xl border border-orange-300/20 bg-orange-500/10 p-3">
+                <p className="text-xs text-orange-200/80 uppercase tracking-wider font-semibold">High</p>
+                <p className="mt-1 text-2xl font-bold text-orange-200">{severitySummary.High || 0}</p>
+              </div>
+              <div className="rounded-xl border border-amber-300/20 bg-amber-500/10 p-3">
+                <p className="text-xs text-amber-200/80 uppercase tracking-wider font-semibold">Medium</p>
+                <p className="mt-1 text-2xl font-bold text-amber-200">{severitySummary.Medium || 0}</p>
+              </div>
+              <div className="rounded-xl border border-sky-300/20 bg-sky-500/10 p-3">
+                <p className="text-xs text-sky-200/80 uppercase tracking-wider font-semibold">Low</p>
+                <p className="mt-1 text-2xl font-bold text-sky-200">{severitySummary.Low || 0}</p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div variants={cardVariants} className="panel-surface rounded-2xl p-6 lg:col-span-2">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-rose-300" />
+                <p className="hud-label">Priority Findings</p>
+              </div>
+              <span className="text-xs text-slate-500">Top {topFindings.length} by severity</span>
+            </div>
+            <div className="space-y-3">
+              {topFindings.map((finding, index) => {
+                const severity = (finding.severity || 'Low').toLowerCase();
+                const severityBadge =
+                  severity === 'critical'
+                    ? 'border-red-400/30 bg-red-500/10 text-red-300'
+                    : severity === 'high'
+                      ? 'border-orange-300/30 bg-orange-500/10 text-orange-200'
+                      : severity === 'medium'
+                        ? 'border-amber-300/30 bg-amber-500/10 text-amber-200'
+                        : 'border-sky-300/30 bg-sky-500/10 text-sky-200';
+
+                return (
+                  <div key={`${finding.port}-${index}`} className="rounded-xl border border-slate-400/20 bg-slate-900/45 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-100">Port {finding.port} - {finding.service}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${severityBadge}`}>
+                        {finding.severity || 'Low'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-300 leading-relaxed">
+                      {finding.description || finding.risk || 'Open service detected with potential exposure risk.'}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-400">
+                      <span className="font-semibold text-slate-300">Recommendation:</span>{' '}
+                      {finding.firewall_recommendation || finding.recommendation || 'Restrict access to trusted hosts and harden authentication.'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Host list */}
       <motion.div 

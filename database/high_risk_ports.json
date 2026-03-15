@@ -1,0 +1,168 @@
+{
+  "21": {
+    "port": 21,
+    "service": "FTP",
+    "risk": "Unencrypted file transfer allowing credential interception and data leakage",
+    "owasp_category": "A02: Cryptographic Failures",
+    "severity": "High",
+    "access_scope_logic": {
+      "open_network": "High",
+      "restricted_ips": "Medium"
+    },
+    "service_explanation": "FTP transmits credentials and files in plaintext which can be intercepted by attackers on the network.",
+    "firewall_recommendation": "Disable FTP if possible. If required, restrict access to specific internal IP addresses or replace with SFTP."
+  },
+  "22": {
+    "port": 22,
+    "service": "SSH",
+    "risk": "Remote administrative access which can be targeted by brute force attacks.",
+    "owasp_category": "A07: Identification and Authentication Failures",
+    "severity": "Medium",
+    "access_scope_logic": {
+      "open_network": "Medium",
+      "restricted_ips": "Low"
+    },
+    "service_explanation": "SSH allows secure remote server access. When exposed broadly it becomes a common brute force attack target.",
+    "firewall_recommendation": "Allow only administrator IPs. Disable password authentication and use key-based authentication."
+  },
+  "23": {
+    "port": 23,
+    "service": "TELNET",
+    "risk": "Completely unencrypted remote access protocol.",
+    "owasp_category": "A02: Cryptographic Failures",
+    "severity": "Critical",
+    "access_scope_logic": {
+      "open_network": "Critical"
+    },
+    "service_explanation": "Telnet sends credentials and commands in plaintext and is considered obsolete.",
+    "firewall_recommendation": "Disable Telnet and replace with SSH."
+  },
+  "25": {
+    "port": 25,
+    "service": "SMTP",
+    "risk": "Mail server abuse or spam relay configuration.",
+    "owasp_category": "A05: Security Misconfiguration",
+    "severity": "Medium",
+    "access_scope_logic": {
+      "internal_only": "Low",
+      "open_external_unrestricted": "High"
+    },
+    "service_explanation": "SMTP servers can be abused for spam or phishing campaigns if improperly configured.",
+    "firewall_recommendation": "Restrict to mail servers only."
+  },
+  "53": {
+    "port": 53,
+    "service": "DNS",
+    "risk": "DNS amplification attacks or unauthorized DNS resolution.",
+    "owasp_category": "A05: Security Misconfiguration",
+    "severity": "Medium",
+    "access_scope_logic": {
+      "internal_dns_only": "Low",
+      "open_resolver": "High"
+    },
+    "service_explanation": "DNS servers should not allow unrestricted recursive queries.",
+    "firewall_recommendation": "Allow only trusted networks."
+  },
+  "80": {
+    "port": 80,
+    "service": "HTTP",
+    "risk": "Unencrypted web traffic vulnerable to interception.",
+    "owasp_category": "A02: Cryptographic Failures",
+    "severity": "Medium",
+    "access_scope_logic": {
+      "public_web_server": "Acceptable",
+      "internal_system": "Medium"
+    },
+    "service_explanation": "HTTP does not encrypt data between client and server.",
+    "firewall_recommendation": "Redirect traffic to HTTPS."
+  },
+  "443": {
+    "port": 443,
+    "service": "HTTPS",
+    "risk": "Normally safe but misconfigurations may expose vulnerabilities.",
+    "owasp_category": "A05: Security Misconfiguration",
+    "severity": "Low",
+    "access_scope_logic": {
+      "public_web_service": "Normal"
+    },
+    "service_explanation": "Encrypted web traffic.",
+    "firewall_recommendation": "Ensure strong TLS configuration."
+  },
+  "1433": {
+    "port": 1433,
+    "service": "MSSQL",
+    "risk": "Database exposure leading to direct data theft.",
+    "owasp_category": "A01: Broken Access Control",
+    "severity": "Critical",
+    "access_scope_logic": {
+      "open_network": "Critical",
+      "restricted_application_servers": "Medium"
+    },
+    "service_explanation": "Direct database access can expose sensitive customer records.",
+    "firewall_recommendation": "Allow access only from application servers."
+  },
+  "3306": {
+    "port": 3306,
+    "service": "MYSQL",
+    "risk": "Direct database access enabling data extraction.",
+    "owasp_category": "A01: Broken Access Control",
+    "severity": "Critical",
+    "access_scope_logic": {
+      "open_network": "Critical",
+      "restricted_backend_servers": "Medium"
+    },
+    "service_explanation": "MySQL exposure can reveal sensitive application data.",
+    "firewall_recommendation": "Restrict access to backend services only."
+  },
+  "3389": {
+    "port": 3389,
+    "service": "RDP",
+    "risk": "Common ransomware entry point.",
+    "owasp_category": "A05: Security Misconfiguration",
+    "severity": "Critical",
+    "access_scope_logic": {
+      "open_network": "Critical",
+      "restricted_admin_access": "Medium"
+    },
+    "service_explanation": "Remote Desktop access can allow attackers to control systems remotely.",
+    "firewall_recommendation": "Restrict to specific administrator IPs or VPN."
+  },
+  "5900": {
+    "port": 5900,
+    "service": "VNC",
+    "risk": "Remote desktop access often poorly secured.",
+    "owasp_category": "A07: Identification and Authentication Failures",
+    "severity": "High",
+    "access_scope_logic": {
+      "open_network": "High",
+      "restricted_admin_access": "Medium"
+    },
+    "service_explanation": "VNC allows remote control of systems and is frequently targeted.",
+    "firewall_recommendation": "Restrict access and enable authentication."
+  },
+  "6379": {
+    "port": 6379,
+    "service": "REDIS",
+    "risk": "Unauthenticated database access.",
+    "owasp_category": "A05: Security Misconfiguration",
+    "severity": "Critical",
+    "access_scope_logic": {
+      "open_network": "Critical"
+    },
+    "service_explanation": "Redis instances often run without authentication leading to data exposure.",
+    "firewall_recommendation": "Bind to localhost or restrict to trusted hosts."
+  },
+  "27017": {
+    "port": 27017,
+    "service": "MONGODB",
+    "risk": "Database exposure allowing full data access.",
+    "owasp_category": "A01: Broken Access Control",
+    "severity": "Critical",
+    "access_scope_logic": {
+      "open_public": "Critical",
+      "internal_restricted_access": "Medium"
+    },
+    "service_explanation": "MongoDB instances without authentication can expose entire datasets.",
+    "firewall_recommendation": "Enable authentication and restrict access."
+  }
+}

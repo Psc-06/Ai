@@ -1,0 +1,121 @@
+{
+  "A01": {
+    "name": "Broken Access Control",
+    "description": "Restrictions on authenticated users are not properly enforced.",
+    "examples": [
+      "Privilege escalation",
+      "Accessing admin panel without authorization",
+      "IDOR (Insecure Direct Object Reference)"
+    ],
+    "severity": "High",
+    "impact": "Attackers can access sensitive data or perform unauthorized actions"
+  },
+
+  "A02": {
+    "name": "Cryptographic Failures",
+    "description": "Sensitive data exposure due to weak or missing encryption.",
+    "examples": [
+      "HTTP instead of HTTPS",
+      "Weak SSL/TLS configuration",
+      "Sensitive data stored in plaintext"
+    ],
+    "severity": "High",
+    "impact": "Attackers may steal credentials, credit cards, or personal data"
+  },
+
+  "A03": {
+    "name": "Injection",
+    "description": "Untrusted input is interpreted as code or commands.",
+    "examples": [
+      "SQL Injection",
+      "Command Injection",
+      "LDAP Injection"
+    ],
+    "severity": "Critical",
+    "impact": "Attackers can execute commands or manipulate databases"
+  },
+
+  "A04": {
+    "name": "Insecure Design",
+    "description": "Security flaws due to poor system design.",
+    "examples": [
+      "Missing rate limiting",
+      "Weak authentication design",
+      "Business logic vulnerabilities"
+    ],
+    "severity": "Medium",
+    "impact": "System can be exploited due to architectural weaknesses"
+  },
+
+  "A05": {
+    "name": "Security Misconfiguration",
+    "description": "Improper configuration of security controls.",
+    "examples": [
+      "Default credentials",
+      "Open cloud storage buckets",
+      "Unnecessary services enabled"
+    ],
+    "severity": "High",
+    "impact": "Attackers exploit poorly configured systems"
+  },
+
+  "A06": {
+    "name": "Vulnerable and Outdated Components",
+    "description": "Using libraries or software with known vulnerabilities.",
+    "examples": [
+      "Outdated Apache server",
+      "Old WordPress plugins",
+      "Unpatched operating systems"
+    ],
+    "severity": "High",
+    "impact": "Attackers exploit known CVEs in outdated software"
+  },
+
+  "A07": {
+    "name": "Identification and Authentication Failures",
+    "description": "Authentication systems are weak or broken.",
+    "examples": [
+      "Weak passwords",
+      "Brute force attacks",
+      "Session hijacking"
+    ],
+    "severity": "High",
+    "impact": "Attackers can take over user accounts"
+  },
+
+  "A08": {
+    "name": "Software and Data Integrity Failures",
+    "description": "Code and infrastructure do not verify integrity.",
+    "examples": [
+      "Insecure CI/CD pipelines",
+      "Unsigned updates",
+      "Malicious dependency injection"
+    ],
+    "severity": "High",
+    "impact": "Attackers inject malicious code into applications"
+  },
+
+  "A09": {
+    "name": "Security Logging and Monitoring Failures",
+    "description": "Security events are not logged or monitored properly.",
+    "examples": [
+      "No login monitoring",
+      "No alerting system",
+      "Logs not stored securely"
+    ],
+    "severity": "Medium",
+    "impact": "Attacks go undetected for long periods"
+  },
+
+  "A10": {
+    "name": "Server-Side Request Forgery (SSRF)",
+    "description": "Server fetches remote resources without validating URLs.",
+    "examples": [
+      "Internal network scanning via server",
+      "Cloud metadata exposure",
+      "Accessing internal APIs"
+    ],
+    "severity": "High",
+    "impact": "Attackers access internal systems or cloud metadata"
+  }
+}

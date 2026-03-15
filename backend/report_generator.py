@@ -72,7 +72,49 @@ def _iter_host_lines(scan_doc: Dict[str, Any]) -> Iterable[str]:
                 yield f"      CVE: {cve_id} [{severity}]{suffix}"
 
 
-def build_pdf_report(scan_doc: Dict[str, Any], findings: List[Dict[str, Any]]) -> bytes:
+def _iter_port_intelligence_lines(intelligence: Dict[str, Any]) -> Iterable[str]:
+    """Yield report lines for port intelligence findings and score summary."""
+    risk_summary = intelligence.get("risk_summary", {})
+    severity_summary = risk_summary.get("severity_summary", {})
+
+    yield "Risk Summary"
+    yield f"  - Network Security Score: {risk_summary.get('network_security_score', 100)} / 100"
+    yield f"  - Total Risk Score: {risk_summary.get('total_risk_score', 0)}"
+    yield f"  - Critical: {severity_summary.get('Critical', 0)}"
+    yield f"  - High: {severity_summary.get('High', 0)}"
+    yield f"  - Medium: {severity_summary.get('Medium', 0)}"
+    yield f"  - Low: {severity_summary.get('Low', 0)}"
+    yield ""
+    yield "Open Port Findings"
+
+    for finding in intelligence.get("findings", []):
+        yield f"Port: {finding.get('port', 'n/a')}"
+        yield f"Service: {finding.get('service', 'Unknown')}"
+        if finding.get("risk"):
+            yield f"Risk: {finding.get('risk')}"
+        yield f"Vulnerability Name: {finding.get('vulnerability_name', 'Unknown Risk')}"
+        yield f"Description: {finding.get('description', 'No technical description available')}"
+        yield f"Explanation: {finding.get('explanation_for_user', 'No user-friendly explanation available')}"
+        if finding.get("service_explanation"):
+            yield f"Service Explanation: {finding.get('service_explanation')}"
+        yield f"Possible Attack Impact: {finding.get('possible_attack', 'Potential unauthorized access or service abuse')}"
+        yield f"Severity: {finding.get('severity', 'Low')} ({finding.get('severity_color', 'Green')})"
+        yield f"OWASP Category: {finding.get('owasp_category', 'A05 - Security Misconfiguration')}"
+        yield f"Recommended Fix: {finding.get('recommendation', 'Review and harden this service')}"
+        if finding.get("firewall_recommendation"):
+            yield f"Firewall Recommendation: {finding.get('firewall_recommendation')}"
+        access_scope_logic = finding.get("access_scope_logic")
+        if isinstance(access_scope_logic, dict) and access_scope_logic:
+            scope_parts = [f"{key}: {value}" for key, value in access_scope_logic.items()]
+            yield f"Access Scope Logic: {' | '.join(scope_parts)}"
+        yield ""
+
+
+def build_pdf_report(
+    scan_doc: Dict[str, Any],
+    findings: List[Dict[str, Any]],
+    intelligence: Dict[str, Any] | None = None,
+) -> bytes:
     """Generate a PDF vulnerability report as bytes."""
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=letter)
@@ -115,6 +157,17 @@ def build_pdf_report(scan_doc: Dict[str, Any], findings: List[Dict[str, Any]]) -
     y_pos -= 10
     if y_pos <= BOTTOM_MARGIN:
         y_pos = _new_page(pdf)
+
+    if intelligence and intelligence.get("findings"):
+        y_pos = _write_line(pdf, "Port Intelligence", y_pos, font="Helvetica-Bold", size=13)
+        for line in _iter_port_intelligence_lines(intelligence):
+            if y_pos <= BOTTOM_MARGIN:
+                y_pos = _new_page(pdf)
+            y_pos = _write_wrapped(pdf, line, y_pos)
+
+        y_pos -= 10
+        if y_pos <= BOTTOM_MARGIN:
+            y_pos = _new_page(pdf)
 
     y_pos = _write_line(pdf, "Host and Service Details", y_pos, font="Helvetica-Bold", size=13)
     for line in _iter_host_lines(scan_doc):

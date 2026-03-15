@@ -86,16 +86,22 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-zinc-950 text-slate-200 overflow-hidden font-sans selection:bg-blue-500/30">
+    <div className="relative flex h-screen w-full overflow-hidden text-slate-100 selection:bg-sky-400/30">
+      <div className="pointer-events-none absolute inset-0 app-grid-overlay opacity-60" />
+      <div className="pointer-events-none absolute -left-16 top-24 h-72 w-72 rounded-full bg-cyan-400/20 blur-[90px]" />
+      <div className="pointer-events-none absolute right-10 top-10 h-80 w-80 rounded-full bg-sky-500/15 blur-[110px]" />
+      <div className="pointer-events-none absolute bottom-0 left-1/2 h-72 w-[40rem] -translate-x-1/2 rounded-full bg-blue-500/10 blur-[120px]" />
       
       {/* ── Sidebar ────────────────────────────────────────────────────── */}
       <motion.aside 
         animate={{ width: isSidebarOpen ? 260 : 80 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-20 flex flex-col shrink-0 border-r border-white/5 bg-zinc-900/50 backdrop-blur-xl"
+        className="glass-shell relative z-20 m-3 mr-0 flex shrink-0 flex-col rounded-2xl"
       >
-        <div className="flex items-center h-20 px-6 border-b border-white/5">
-          <Shield className="h-8 w-8 text-blue-500 min-w-[32px] drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]" />
+        <div className="flex h-20 items-center border-b border-sky-300/10 px-6">
+          <div className="rounded-2xl border border-sky-300/20 bg-sky-400/10 p-2 shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+            <Shield className="h-7 w-7 min-w-[28px] text-sky-300" />
+          </div>
           <AnimatePresence>
             {isSidebarOpen && (
               <motion.div 
@@ -105,8 +111,8 @@ export default function App() {
                 transition={{ duration: 0.2 }}
                 className="ml-4 flex flex-col whitespace-nowrap"
               >
-                <span className="font-bold text-lg tracking-wide text-white">BankShield</span>
-                <span className="text-blue-400/80 text-xs font-medium uppercase tracking-widest">Network Scanner</span>
+                <span className="text-lg font-bold tracking-wide text-slate-100">BankShield</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Threat Command</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -122,20 +128,20 @@ export default function App() {
                 key={id}
                 onClick={() => !isDisabled && setActiveTab(id)}
                 disabled={isDisabled}
-                className={`group relative flex w-full items-center px-3 py-3 rounded-xl transition-all duration-300 ${
-                  isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-white/5'
+                className={`group relative flex w-full items-center rounded-xl px-3 py-3 transition-all duration-300 ${
+                  isDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:bg-slate-700/30'
                 }`}
               >
                 {isActive && (
                   <motion.div
                     layoutId="activeTabIndicator"
-                    className="absolute inset-0 rounded-xl bg-blue-500/10 border border-blue-500/20"
+                    className="absolute inset-0 rounded-xl border border-sky-300/30 bg-gradient-to-r from-sky-500/25 to-cyan-400/15"
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
                 
                 <Icon className={`h-5 w-5 min-w-[20px] relative z-10 transition-colors duration-300 ${
-                  isActive ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-200'
+                  isActive ? 'text-sky-300' : 'text-slate-400 group-hover:text-slate-200'
                 }`} />
                 
                 <AnimatePresence>
@@ -147,12 +153,12 @@ export default function App() {
                       className="ml-3 relative z-10 whitespace-nowrap overflow-hidden flex items-center justify-between flex-1"
                     >
                       <span className={`font-medium text-sm transition-colors duration-300 ${
-                        isActive ? 'text-blue-100' : 'text-slate-400 group-hover:text-slate-200'
+                        isActive ? 'text-sky-100' : 'text-slate-400 group-hover:text-slate-200'
                       }`}>
                         {label}
                       </span>
                       {id === 'results' && activeScanId && (
-                        <span className="px-2 py-0.5 bg-blue-500/20 border border-blue-500/30 text-blue-300 rounded text-[10px] font-mono font-bold tracking-wider">
+                        <span className="rounded border border-sky-300/25 bg-sky-400/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-cyan-200">
                           {activeScanId.slice(0, 5)}
                         </span>
                       )}
@@ -165,11 +171,11 @@ export default function App() {
         </nav>
 
         {/* Backend Status Widget */}
-        <div className="p-4 border-t border-white/5">
+        <div className="border-t border-sky-300/10 p-4">
           <div className={`p-3 rounded-xl border flex items-center gap-3 transition-colors ${
-            backendStatus === 'ok' ? 'bg-emerald-500/10 border-emerald-500/20' : 
-            backendStatus === 'error' ? 'bg-rose-500/10 border-rose-500/20' : 
-            'bg-amber-500/10 border-amber-500/20'
+            backendStatus === 'ok' ? 'border-emerald-300/30 bg-emerald-500/10' : 
+            backendStatus === 'error' ? 'border-rose-300/30 bg-rose-500/10' : 
+            'border-amber-300/30 bg-amber-500/10'
           }`}>
             <div className="relative flex min-w-[16px] items-center justify-center">
               {backendStatus === 'ok' && (
@@ -198,32 +204,43 @@ export default function App() {
       </motion.aside>
 
       {/* ── Main Content Area ──────────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col min-w-0 relative z-10">
+      <main className="relative z-10 m-3 ml-3 flex min-w-0 flex-1 flex-col rounded-2xl glass-shell">
         {/* Top Header */}
-        <header className="h-20 px-8 flex items-center justify-between shrink-0 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md">
+        <header className="h-20 shrink-0 border-b border-sky-300/10 bg-slate-950/25 px-8 backdrop-blur-md">
+          <div className="flex h-full items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 -ml-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="-ml-2 rounded-lg border border-transparent p-2 text-slate-400 transition-colors hover:border-sky-300/20 hover:bg-sky-400/10 hover:text-white"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h1 className="text-xl font-semibold text-white/90">
+            <div>
+              <p className="hud-label">Operations View</p>
+              <h1 className="text-xl font-semibold text-slate-100">
               {TABS.find(t => t.id === activeTab)?.label}
-            </h1>
+              </h1>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
+            {activeScanId && (
+              <div className="hidden items-center gap-2 rounded-xl border border-sky-300/20 bg-sky-400/10 px-3 py-1.5 text-xs font-semibold tracking-wider text-cyan-200 md:flex">
+                ACTIVE SCAN
+                <span className="font-mono text-slate-100">{activeScanId.slice(0, 8)}</span>
+              </div>
+            )}
             {window.electronAPI?.toggleFullscreen && (
               <button
                 type="button"
                 onClick={handleToggleFullscreen}
-                className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-300 transition-all hover:bg-white/10 hover:border-white/20 active:scale-95"
+                className="rounded-lg border border-sky-300/20 bg-sky-400/10 p-2 text-slate-100 transition-all hover:border-sky-300/30 hover:bg-sky-400/20 active:scale-95"
                 title="Toggle fullscreen"
               >
                 <Maximize2 className="h-4 w-4" />
               </button>
             )}
+          </div>
           </div>
         </header>
 
@@ -241,10 +258,10 @@ export default function App() {
         )}
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-auto p-6 md:p-10">
+        <div className="flex-1 overflow-auto p-5 md:p-9">
           <AnimatePresence mode="wait">
             {activeTab === 'scanner' && (
-              <motion.div key="scanner" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="max-w-3xl mx-auto w-full">
+              <motion.div key="scanner" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="max-w-3xl mx-auto w-full min-w-0">
                 <ScanControl
                   onScanComplete={handleScanComplete}
                   backendStatus={backendStatus}
@@ -252,12 +269,12 @@ export default function App() {
               </motion.div>
             )}
             {activeTab === 'results' && (
-              <motion.div key="results" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <motion.div key="results" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full min-w-0">
                 <ScanResults scanId={activeScanId} data={scanData} loading={loadingData} />
               </motion.div>
             )}
             {activeTab === 'owasp' && (
-              <motion.div key="owasp" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <motion.div key="owasp" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full min-w-0">
                 <OwaspReport
                   scanId={activeScanId}
                   data={owaspData}

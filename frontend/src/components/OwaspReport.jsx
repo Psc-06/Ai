@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, ShieldAlert, FileText, Info, Download, Maximize2, CheckCircle2 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -47,6 +47,8 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function OwaspReport({ scanId, data, loading, onToggleFullscreen }) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportState, setExportState] = useState({ type: null, message: '' });
+  const chartContainerRef = useRef(null);
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
 
   if (loading) {
     return (
@@ -79,10 +81,30 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
   }
 
   const categories = data.counts_by_category ?? data.categories ?? data.owasp_categories ?? {};
+  const findingItems = Array.isArray(data.findings) ? data.findings : [];
   const chartData = Object.entries(categories)
     .map(([name, count]) => ({ name, count: Number(count) || 0, fill: barColor(name) }))
     .sort((a, b) => b.count - a.count);
   const totalFindings = chartData.reduce((s, d) => s + d.count, 0);
+
+  useEffect(() => {
+    const element = chartContainerRef.current;
+    if (!element) return undefined;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const nextWidth = Math.floor(entry.contentRect.width);
+      const nextHeight = Math.floor(entry.contentRect.height);
+      setChartSize({
+        width: Math.max(0, nextWidth),
+        height: Math.max(0, nextHeight),
+      });
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   async function handleExport() {
     if (!scanId || isExporting) return;
@@ -136,13 +158,13 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial="hidden" animate="visible" variants={containerVariants}
       className="w-full space-y-8 pb-10"
     >
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-6">
         <div>
-          <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+          <h2 className="bg-gradient-to-r from-slate-100 to-cyan-300 bg-clip-text text-3xl font-bold text-transparent">
             OWASP Vulnerability Matrix
           </h2>
           {scanId && (
@@ -195,7 +217,7 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
 
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <motion.div variants={itemVariants} className="bg-zinc-900/40 border border-white/10 rounded-2xl p-6 relative overflow-hidden backdrop-blur-md group shadow-xl">
+        <motion.div variants={itemVariants} className="panel-surface group relative overflow-hidden rounded-2xl p-6 shadow-xl">
           <div className={`absolute -bottom-10 -right-10 w-32 h-32 rounded-full blur-3xl transition-colors ${totalFindings > 0 ? 'bg-red-500/10 group-hover:bg-red-500/20' : 'bg-emerald-500/10 group-hover:bg-emerald-500/20'}`} />
           <p className="text-xs uppercase font-bold tracking-widest text-slate-500 mb-2">Total High-Risk Findings</p>
           <p className={`text-5xl font-black tracking-tight drop-shadow-md ${totalFindings > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -203,7 +225,7 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
           </p>
         </motion.div>
         
-        <motion.div variants={itemVariants} className="bg-zinc-900/40 border border-white/10 rounded-2xl p-6 relative overflow-hidden backdrop-blur-md group shadow-xl">
+        <motion.div variants={itemVariants} className="panel-surface group relative overflow-hidden rounded-2xl p-6 shadow-xl">
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
           <p className="text-xs uppercase font-bold tracking-widest text-slate-500 mb-2">Affected Vectors</p>
           <p className="text-5xl font-black text-blue-400 tracking-tight drop-shadow-md">{chartData.length}</p>
@@ -212,7 +234,7 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
 
       {/* Bar chart */}
       {chartData.length > 0 && (
-        <motion.div variants={itemVariants} className="bg-zinc-900/40 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-xl relative overflow-hidden">
+        <motion.div variants={itemVariants} className="panel-surface relative overflow-hidden rounded-2xl p-6 shadow-xl">
           <div className="absolute top-0 right-0 w-64 h-64 bg-slate-500/5 rounded-full blur-3xl" />
           <h3 className="font-bold text-lg mb-8 flex items-center gap-3 text-slate-200">
             <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20">
@@ -220,40 +242,97 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
             </div>
             Threat Distribution
           </h3>
-          <div className="relative z-10 w-full h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 40, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
-                  angle={-25}
-                  textAnchor="end"
-                  interval={0}
-                  axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                  tickLine={false}
-                  dy={10}
-                />
-                <YAxis 
-                  tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} 
-                  allowDecimals={false} 
-                  axisLine={false} 
-                  tickLine={false}
-                  dx={-10}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-                <Bar 
-                  dataKey="count" 
-                  radius={[6, 6, 0, 0]} 
-                  animationDuration={1500} 
-                  animationEasing="ease-out"
+          <div ref={chartContainerRef} className="relative z-10 w-full h-80 min-h-[320px] min-w-0">
+            {chartSize.width > 0 && chartSize.height > 0 && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={320} minHeight={280}>
+                <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 40, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                    angle={-25}
+                    textAnchor="end"
+                    interval={0}
+                    axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                    tickLine={false}
+                    dy={10}
+                  />
+                  <YAxis
+                    tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }}
+                    allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
+                    dx={-10}
+                  />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
+                  <Bar
+                    dataKey="count"
+                    radius={[6, 6, 0, 0]}
+                    animationDuration={1500}
+                    animationEasing="ease-out"
+                  >
+                    {chartData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Finding details */}
+      {findingItems.length > 0 && (
+        <motion.div variants={itemVariants} className="space-y-3">
+          <h3 className="font-bold text-slate-300 mb-4 px-1 uppercase tracking-widest text-xs">Finding Details</h3>
+          <div className="space-y-3">
+            {findingItems.map((finding, index) => {
+              const category = finding.category || finding.owasp_code || 'Unknown Category';
+              const severity = (finding.severity || 'Low').toUpperCase();
+              const severityTone =
+                severity === 'CRITICAL'
+                  ? 'text-red-300 border-red-500/30 bg-red-500/10'
+                  : severity === 'HIGH'
+                    ? 'text-orange-300 border-orange-500/30 bg-orange-500/10'
+                    : severity === 'MEDIUM'
+                      ? 'text-amber-300 border-amber-500/30 bg-amber-500/10'
+                      : 'text-blue-300 border-blue-500/30 bg-blue-500/10';
+
+              const matched = Array.isArray(finding.matched_indicators)
+                ? finding.matched_indicators.join(', ')
+                : '';
+
+              return (
+                <motion.div
+                  key={`${category}-${index}`}
+                  whileHover={{ scale: 1.01, backgroundColor: 'rgba(255,255,255,0.03)' }}
+                  className="panel-surface rounded-2xl p-5"
                 >
-                  {chartData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                    <span className="font-semibold text-slate-100">{category}</span>
+                    <span className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold tracking-widest ${severityTone}`}>
+                      {severity}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    {finding.description || 'No vulnerability description available.'}
+                  </p>
+
+                  <p className="text-sm text-slate-400 leading-relaxed mt-2">
+                    <span className="font-semibold text-slate-300">What it can do:</span>{' '}
+                    {finding.impact || 'Potential unauthorized access, data exposure, or service disruption.'}
+                  </p>
+
+                  {matched && (
+                    <p className="text-xs text-slate-500 font-mono mt-3">
+                      Indicators: {matched}
+                    </p>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
       )}

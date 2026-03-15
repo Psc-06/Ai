@@ -3,40 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 from typing import Any, Dict, List
 
 from pymongo.errors import PyMongoError
 
 import db_connector
-
-
-OWASP_CATEGORIES = {
-    "A01:2021 - Broken Access Control": {
-        "indicators": [
-            "open_port_3306",  # MySQL
-            "open_port_5432",  # PostgreSQL
-            "open_port_1433",  # MS SQL
-        ],
-        "severity": "CRITICAL",
-        "description": "Database ports exposed to network",
-    },
-    "A02:2021 - Cryptographic Failures": {
-        "indicators": ["ssl_tls_1.0", "ssl_tls_1.1", "weak_cipher"],
-        "severity": "HIGH",
-    },
-    "A05:2021 - Security Misconfiguration": {
-        "indicators": [
-            "open_port_3389",  # RDP
-            "open_port_21",  # FTP
-            "open_port_23",  # Telnet
-        ],
-        "severity": "CRITICAL",
-    },
-    "A06:2021 - Vulnerable Components": {
-        "indicators": ["outdated_software", "cve_critical"],
-        "severity": "HIGH",
-    },
-}
+import owasp_catalog
+import vulnerability_mapper
 
 
 def map_port_to_indicator(port_number: int) -> str:
@@ -53,32 +27,49 @@ def categorize_findings(scan_results: Dict[str, Any]) -> List[Dict[str, Any]]:
     Returns:
         List of OWASP finding dictionaries including matched indicators and severity.
     """
-    hosts = scan_results.get("hosts", [])
-    detected_indicators = set()
+    analyzed = vulnerability_mapper.analyze_scan_document(scan_results)
+    port_findings = analyzed.get("findings", [])
 
-    for host in hosts:
-        for port_info in host.get("ports", []):
-            state = str(port_info.get("state", "")).lower()
-            if state == "open":
-                indicator = map_port_to_indicator(int(port_info.get("port", 0)))
-                detected_indicators.add(indicator)
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for port_finding in port_findings:
+        category_label = str(port_finding.get("owasp_category", "A05 - Security Misconfiguration"))
+        match = re.match(r"^(A\d+)", category_label)
+        category_code = match.group(1) if match else "A05"
 
-    owasp_findings: List[Dict[str, Any]] = []
-    for category_name, category_meta in OWASP_CATEGORIES.items():
-        category_indicators = set(category_meta.get("indicators", []))
-        matched = sorted(detected_indicators.intersection(category_indicators))
-
-        if matched:
-            finding = {
-                "category": category_name,
-                "severity": category_meta.get("severity", "MEDIUM"),
-                "matched_indicators": matched,
-                "scan_id": scan_results.get("scan_id"),
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+        if category_label not in grouped:
+            grouped[category_label] = {
+                "owasp_code": category_code,
+                "category": category_label,
+                "matched_indicators": [],
+                "severity": "Low",
             }
-            if "description" in category_meta:
-                finding["description"] = category_meta["description"]
-            owasp_findings.append(finding)
+
+        grouped[category_label]["matched_indicators"].append(
+            map_port_to_indicator(int(port_finding.get("port", 0)))
+        )
+
+        current_severity = str(port_finding.get("severity", "Low"))
+        ranked = {"Low": 1, "Medium": 2, "High": 3, "Critical": 4}
+        existing_severity = str(grouped[category_label].get("severity", "Low"))
+        if ranked.get(current_severity, 1) > ranked.get(existing_severity, 1):
+            grouped[category_label]["severity"] = current_severity
+
+    catalog = owasp_catalog.get_owasp_catalog()
+    owasp_findings: List[Dict[str, Any]] = []
+    for category_label, grouped_item in grouped.items():
+        category_code = str(grouped_item.get("owasp_code", "A05"))
+        meta = catalog.get(category_code, {})
+        finding = {
+            "owasp_code": category_code,
+            "category": category_label,
+            "severity": grouped_item.get("severity", meta.get("severity", "Medium")),
+            "matched_indicators": sorted(set(grouped_item.get("matched_indicators", []))),
+            "scan_id": scan_results.get("scan_id"),
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "description": meta.get("description", ""),
+            "impact": meta.get("impact", ""),
+        }
+        owasp_findings.append(finding)
 
     try:
         db = db_connector.get_database()

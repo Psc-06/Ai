@@ -14,6 +14,7 @@ import cve_checker
 import owasp_mapper
 import report_generator
 import scanner
+import vulnerability_mapper
 
 
 app = Flask(__name__)
@@ -69,6 +70,8 @@ def start_scan():
         scan_result = scanner.scan_network(str(network_range), str(ports))
         enriched_scan_result = cve_checker.enrich_scan_with_cves(scan_result)
         owasp_findings = owasp_mapper.categorize_findings(enriched_scan_result)
+        intelligence = vulnerability_mapper.analyze_scan_document(enriched_scan_result)
+        enriched_scan_result["port_intelligence"] = intelligence
 
         db = db_connector.get_database()
         db[db_connector.SCAN_RESULTS_COLLECTION].insert_one(enriched_scan_result)
@@ -79,6 +82,9 @@ def start_scan():
                     "scan_id": enriched_scan_result.get("scan_id"),
                     "status": "completed",
                     "owasp_findings_count": len(owasp_findings),
+                    "port_findings_count": len(intelligence.get("findings", [])),
+                    "network_security_score": intelligence.get("risk_summary", {}).get("network_security_score", 100),
+                    "risk_summary": intelligence.get("risk_summary", {}),
                 }
             ),
             200,
@@ -109,6 +115,13 @@ def get_scan_results(scan_id: str):
         )
         if has_missing_cves:
             scan_doc = cve_checker.enrich_scan_with_cves(scan_doc)
+            db[db_connector.SCAN_RESULTS_COLLECTION].replace_one(
+                {"scan_id": scan_id},
+                scan_doc,
+            )
+
+        if "port_intelligence" not in scan_doc:
+            scan_doc["port_intelligence"] = vulnerability_mapper.analyze_scan_document(scan_doc)
             db[db_connector.SCAN_RESULTS_COLLECTION].replace_one(
                 {"scan_id": scan_id},
                 scan_doc,
@@ -165,7 +178,11 @@ def export_pdf_report(scan_id: str):
             return jsonify({"error": "Scan result not found", "scan_id": scan_id}), 404
 
         findings = _get_owasp_findings(scan_id)
-        pdf_bytes = report_generator.build_pdf_report(scan_doc, findings)
+        intelligence = scan_doc.get("port_intelligence")
+        if not intelligence:
+            intelligence = vulnerability_mapper.analyze_scan_document(scan_doc)
+
+        pdf_bytes = report_generator.build_pdf_report(scan_doc, findings, intelligence)
         return send_file(
             BytesIO(pdf_bytes),
             as_attachment=True,
