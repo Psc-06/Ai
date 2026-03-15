@@ -1,7 +1,110 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Monitor, ChevronDown, AlertTriangle, Shield, Server, Globe, Loader2, Activity, Radar, ShieldAlert, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+/* ── Count-up hook ───────────────────────────────────────────────── */
+function useCountUp(target, duration = 1100) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (typeof target !== 'number' || target === 0) { setValue(0); return; }
+    let start = null;
+    let rafId;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(eased * target));
+      if (progress < 1) rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
+  }, [target, duration]);
+  return value;
+}
+
+/* ── Circular gauge ring ─────────────────────────────────────────── */
+function GaugeRing({ score = 0, size = 108 }) {
+  const r = 42;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.max(0, Math.min(100, score)) / 100);
+  const color = score >= 80 ? '#34d399' : score >= 60 ? '#f59e0b' : '#f87171';
+  const countedScore = useCountUp(score);
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox="0 0 100 100" aria-label={`Security score ${score}`}>
+        {/* Track */}
+        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="9" />
+        {/* Arc */}
+        <motion.circle
+          cx="50" cy="50" r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          initial={{ strokeDashoffset: circ }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1] }}
+          className="gauge-arc"
+          style={{ filter: `drop-shadow(0 0 7px ${color})` }}
+        />
+        {/* Tick marks */}
+        {[0, 25, 50, 75].map((pct) => {
+          const angle = (pct / 100) * 360 - 90;
+          const rad = (angle * Math.PI) / 180;
+          const x1 = 50 + (r - 5) * Math.cos(rad);
+          const y1 = 50 + (r - 5) * Math.sin(rad);
+          const x2 = 50 + (r + 2) * Math.cos(rad);
+          const y2 = 50 + (r + 2) * Math.sin(rad);
+          return <line key={pct} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />;
+        })}
+      </svg>
+      {/* Center text */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-mono text-xl font-black leading-none" style={{ color }}>
+          {countedScore}
+        </span>
+        <span className="text-[8px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">score</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Network topology background motif ───────────────────────────── */
+function NetworkTopologyBg() {
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.12]"
+      viewBox="0 0 320 400"
+      fill="none"
+      aria-hidden="true"
+      preserveAspectRatio="xMidYMid slice"
+    >
+      {/* Edges */}
+      <line x1="60"  y1="80"  x2="160" y2="140" stroke="#818cf8" strokeWidth="0.8" strokeDasharray="4 5" />
+      <line x1="160" y1="140" x2="260" y2="90"  stroke="#818cf8" strokeWidth="0.8" strokeDasharray="4 5" />
+      <line x1="160" y1="140" x2="120" y2="240" stroke="#818cf8" strokeWidth="0.8" strokeDasharray="4 5" />
+      <line x1="120" y1="240" x2="210" y2="300" stroke="#818cf8" strokeWidth="0.8" strokeDasharray="4 5" />
+      <line x1="160" y1="140" x2="210" y2="300" stroke="#818cf8" strokeWidth="0.5" strokeDasharray="3 7" opacity="0.5" />
+      <line x1="60"  y1="80"  x2="120" y2="240" stroke="#6366f1" strokeWidth="0.5" strokeDasharray="3 7" opacity="0.4" />
+      <line x1="260" y1="90"  x2="280" y2="210" stroke="#818cf8" strokeWidth="0.8" strokeDasharray="4 5" />
+      <line x1="280" y1="210" x2="210" y2="300" stroke="#818cf8" strokeWidth="0.8" strokeDasharray="4 5" />
+      {/* Hub node */}
+      <circle cx="160" cy="140" r="7" fill="#818cf8" className="network-node" />
+      <circle cx="160" cy="140" r="14" stroke="#818cf8" strokeWidth="0.6" fill="none" opacity="0.35" />
+      {/* Leaf nodes */}
+      <circle cx="60"  cy="80"  r="4.5" fill="#6366f1" className="network-node-b" />
+      <circle cx="260" cy="90"  r="4.5" fill="#6366f1" className="network-node-c" />
+      <circle cx="120" cy="240" r="5"   fill="#f87171" className="network-node" />
+      <circle cx="210" cy="300" r="4"   fill="#f59e0b" className="network-node-b" />
+      <circle cx="280" cy="210" r="3.5" fill="#6366f1" className="network-node-c" />
+      {/* Tiny dots */}
+      <circle cx="60"  cy="80"  r="10" stroke="#6366f1" strokeWidth="0.5" fill="none" opacity="0.25" />
+      <circle cx="120" cy="240" r="9"  stroke="#f87171" strokeWidth="0.5" fill="none" opacity="0.2" />
+    </svg>
+  );
+}
 
 const SEVERITY_STYLES = {
   critical: { badge: 'bg-red-500/10 text-red-400 border-red-500/30', dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' },
@@ -180,6 +283,24 @@ function HostCard({ host }) {
   );
 }
 
+/* ── Animated stat card with count-up ───────────────────────────────── */
+function AnimatedStatCard({ label, value, color, glow, accentBg, accentBorder }) {
+  const counted = useCountUp(value);
+  return (
+    <motion.div
+      whileHover={{ y: -3 }}
+      variants={cardVariants}
+      className={`panel-premium group relative overflow-hidden rounded-2xl p-4 ${glow}`}
+    >
+      <div className={`absolute -bottom-8 -right-8 w-28 h-28 rounded-full blur-2xl transition-colors duration-500 ${accentBg} group-hover:opacity-150`} />
+      {/* Accent corner bar */}
+      <div className={`absolute top-0 right-0 w-12 h-1 rounded-bl-full ${accentBg} border-b ${accentBorder} opacity-80`} />
+      <p className="mb-1 text-[11px] uppercase font-bold tracking-widest text-slate-500">{label}</p>
+      <p className={`text-3xl font-black ${color} tracking-tight drop-shadow-md count-snap`}>{counted}</p>
+    </motion.div>
+  );
+}
+
 export default function ScanResults({ scanId, data, loading }) {
   if (loading) {
     return (
@@ -220,6 +341,8 @@ export default function ScanResults({ scanId, data, loading }) {
   const severitySummary = riskSummary.severity_summary || {};
   const networkSecurityScore = Number(riskSummary.network_security_score ?? 100);
   const findingPriority = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+  const previewHosts = hosts.slice(0, 3);
+  const remainingHostCount = Math.max(0, hosts.length - previewHosts.length);
   const topFindings = [...(intelligence.findings || [])]
     .sort((a, b) => {
       const severityDiff = (findingPriority[b.severity] || 0) - (findingPriority[a.severity] || 0);
@@ -234,13 +357,13 @@ export default function ScanResults({ scanId, data, loading }) {
   };
 
   return (
-    <div className="w-full space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
+    <div className="flex min-h-full flex-col gap-4 pb-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 border-b border-white/5 pb-3">
         <div>
-          <h2 className="bg-gradient-to-r from-slate-100 to-cyan-300 bg-clip-text text-3xl font-bold text-transparent">
+          <h2 className="font-display aurora-text text-2xl font-bold">
             Exposure Report
           </h2>
-          <p className="text-emerald-400/80 text-sm mt-2 font-mono flex items-center gap-2">
+          <p className="mt-1 text-xs font-mono flex items-center gap-2 text-emerald-400/80">
             <Activity className="h-4 w-4" />
             <span className="tracking-widest">NETWORK: {data.network_range}</span>
           </p>
@@ -255,86 +378,103 @@ export default function ScanResults({ scanId, data, loading }) {
         )}
       </div>
 
-      {/* Summary stats */}
       <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 md:grid-cols-3 gap-5"
+        className="grid grid-cols-2 gap-3 xl:grid-cols-4"
       >
         {[
-          { label: 'Active Targets', value: hosts.length, color: 'text-blue-400', glow: 'shadow-[0_0_30px_rgba(59,130,246,0.1)]' },
-          { label: 'Ports Exposed',  value: totalPorts,   color: 'text-amber-400', glow: 'shadow-[0_0_30px_rgba(251,191,36,0.1)]' },
+          { label: 'Active Targets', value: hosts.length,           color: 'text-blue-400',    glow: 'shadow-[0_0_30px_rgba(59,130,246,0.12)]',  accentBg: 'bg-blue-500/10',    accentBorder: 'border-blue-500/20' },
+          { label: 'Ports Exposed',  value: totalPorts,             color: 'text-amber-400',   glow: 'shadow-[0_0_30px_rgba(251,191,36,0.12)]',  accentBg: 'bg-amber-500/10',   accentBorder: 'border-amber-500/20' },
           {
             label: 'Vulnerabilities',
             value: totalCves,
             color: totalCves > 0 ? 'text-red-400' : 'text-emerald-400',
-            glow: totalCves > 0 ? 'shadow-[0_0_30px_rgba(239,68,68,0.1)]' : 'shadow-[0_0_30px_rgba(16,185,129,0.1)]',
+            glow:  totalCves > 0 ? 'shadow-[0_0_30px_rgba(239,68,68,0.12)]' : 'shadow-[0_0_30px_rgba(16,185,129,0.12)]',
+            accentBg: totalCves > 0 ? 'bg-red-500/10' : 'bg-emerald-500/10',
+            accentBorder: totalCves > 0 ? 'border-red-500/20' : 'border-emerald-500/20',
           },
-        ].map(({ label, value, color, glow }) => (
-          <motion.div 
-            variants={cardVariants}
-            key={label} 
-            className={`panel-surface group relative overflow-hidden rounded-2xl p-6 ${glow}`}
-          >
-            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/5 rounded-full blur-2xl group-hover:bg-white/10 transition-colors" />
-            <p className="text-xs uppercase font-bold tracking-widest text-slate-500 mb-2">{label}</p>
-            <p className={`text-4xl font-black ${color} tracking-tight drop-shadow-md`}>{value}</p>
-          </motion.div>
+          { label: 'Score', value: networkSecurityScore, color: 'text-cyan-300', glow: 'shadow-[0_0_30px_rgba(34,211,238,0.12)]', accentBg: 'bg-cyan-500/10', accentBorder: 'border-cyan-500/20' },
+        ].map(({ label, value, color, glow, accentBg, accentBorder }) => (
+          <AnimatedStatCard key={label} label={label} value={value} color={color} glow={glow} accentBg={accentBg} accentBorder={accentBorder} />
         ))}
       </motion.div>
 
-      {/* Risk intelligence */}
-      {(intelligence.findings || []).length > 0 && (
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 lg:grid-cols-3 gap-5"
-        >
-          <motion.div variants={cardVariants} className="panel-surface rounded-2xl p-6 lg:col-span-1 relative overflow-hidden">
-            <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-cyan-400/10 blur-3xl" />
-            <div className="flex items-center gap-2 mb-4">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+        <motion.div variants={cardVariants} className="panel-premium flex min-h-0 flex-col rounded-2xl p-4 relative overflow-hidden">
+            {/* Network topology background motif */}
+            <NetworkTopologyBg />
+            <div className="mb-3 flex items-center justify-between gap-2 relative z-10">
+              <div className="flex items-center gap-2">
               <Radar className="h-4 w-4 text-cyan-300" />
               <p className="hud-label">Risk Pulse</p>
+              </div>
+              {remainingHostCount > 0 && <span className="text-[11px] text-slate-500">+{remainingHostCount} more hosts</span>}
             </div>
-            <p className="text-sm text-slate-400">Network security score</p>
-            <p className="mt-1 text-5xl font-black tracking-tight text-cyan-200">{networkSecurityScore}</p>
-            <div className="mt-4 h-2 w-full rounded-full bg-slate-800/80 overflow-hidden border border-slate-600/20">
-              <div
-                className={`h-full transition-all duration-700 ${networkSecurityScore >= 80 ? 'bg-emerald-400' : networkSecurityScore >= 60 ? 'bg-amber-400' : 'bg-rose-400'}`}
-                style={{ width: `${Math.max(0, Math.min(100, networkSecurityScore))}%` }}
-              />
+            {/* Gauge ring + score */}
+            <div className="flex items-center gap-4 relative z-10">
+              <GaugeRing score={networkSecurityScore} size={108} />
+              <div>
+                <p className="text-xs text-slate-400">Network security score</p>
+                <p className="mt-1 text-xs font-semibold text-slate-300">
+                  {networkSecurityScore >= 80 ? 'Strong posture' : networkSecurityScore >= 60 ? 'Moderate risk' : 'High exposure'}
+                </p>
+              </div>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-xl border border-red-400/20 bg-red-500/10 p-3">
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm relative z-10">
+              <div className="rounded-xl border border-red-400/20 bg-red-500/10 p-2.5">
                 <p className="text-xs text-red-300/80 uppercase tracking-wider font-semibold">Critical</p>
-                <p className="mt-1 text-2xl font-bold text-red-300">{severitySummary.Critical || 0}</p>
+                <p className="mt-1 text-xl font-bold text-red-300">{severitySummary.Critical || 0}</p>
               </div>
-              <div className="rounded-xl border border-orange-300/20 bg-orange-500/10 p-3">
+              <div className="rounded-xl border border-orange-300/20 bg-orange-500/10 p-2.5">
                 <p className="text-xs text-orange-200/80 uppercase tracking-wider font-semibold">High</p>
-                <p className="mt-1 text-2xl font-bold text-orange-200">{severitySummary.High || 0}</p>
+                <p className="mt-1 text-xl font-bold text-orange-200">{severitySummary.High || 0}</p>
               </div>
-              <div className="rounded-xl border border-amber-300/20 bg-amber-500/10 p-3">
+              <div className="rounded-xl border border-amber-300/20 bg-amber-500/10 p-2.5">
                 <p className="text-xs text-amber-200/80 uppercase tracking-wider font-semibold">Medium</p>
-                <p className="mt-1 text-2xl font-bold text-amber-200">{severitySummary.Medium || 0}</p>
+                <p className="mt-1 text-xl font-bold text-amber-200">{severitySummary.Medium || 0}</p>
               </div>
-              <div className="rounded-xl border border-sky-300/20 bg-sky-500/10 p-3">
+              <div className="rounded-xl border border-sky-300/20 bg-sky-500/10 p-2.5">
                 <p className="text-xs text-sky-200/80 uppercase tracking-wider font-semibold">Low</p>
-                <p className="mt-1 text-2xl font-bold text-sky-200">{severitySummary.Low || 0}</p>
+                <p className="mt-1 text-xl font-bold text-sky-200">{severitySummary.Low || 0}</p>
               </div>
             </div>
-          </motion.div>
 
-          <motion.div variants={cardVariants} className="panel-surface rounded-2xl p-6 lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mt-4 min-h-0 flex-1 relative z-10">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="hud-label">Host Preview</p>
+                <span className="text-[11px] text-slate-500">Top {previewHosts.length}</span>
+              </div>
+              <div className="grid gap-2">
+                {previewHosts.length === 0 ? (
+                  <div className="rounded-xl border border-slate-300/10 bg-slate-950/40 p-3 text-xs text-slate-500">No hosts discovered.</div>
+                ) : (
+                  previewHosts.map((host, index) => (
+                    <div key={host.ip ?? index} className="rounded-xl border border-slate-300/10 bg-slate-950/40 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-mono text-sm font-semibold text-slate-100">{host.ip}</span>
+                        <span className="text-[11px] text-slate-500">{host.ports?.length ?? 0} ports</span>
+                      </div>
+                      <p className="mt-2 text-xs text-slate-400 truncate">
+                        {(host.ports || []).slice(0, 4).map((port) => `${port.port}/${port.protocol || 'tcp'} ${port.service || 'unknown'}`).join(' • ') || 'No service details'}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+        </motion.div>
+
+        <motion.div variants={cardVariants} className="panel-premium flex min-h-0 flex-col rounded-2xl p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-rose-300" />
                 <p className="hud-label">Priority Findings</p>
               </div>
-              <span className="text-xs text-slate-500">Top {topFindings.length} by severity</span>
+              <span className="text-[11px] text-slate-500">Top {topFindings.length} by severity</span>
             </div>
-            <div className="space-y-3">
+            <div className="grid gap-2">
               {topFindings.map((finding, index) => {
                 const severity = (finding.severity || 'Low').toLowerCase();
                 const severityBadge =
@@ -347,17 +487,17 @@ export default function ScanResults({ scanId, data, loading }) {
                         : 'border-sky-300/30 bg-sky-500/10 text-sky-200';
 
                 return (
-                  <div key={`${finding.port}-${index}`} className="rounded-xl border border-slate-400/20 bg-slate-900/45 p-4">
+                  <div key={`${finding.port}-${index}`} className="rounded-xl border border-slate-400/20 bg-slate-900/45 p-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold text-slate-100">Port {finding.port} - {finding.service}</span>
                       <span className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${severityBadge}`}>
                         {finding.severity || 'Low'}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-slate-300 leading-relaxed">
+                    <p className="mt-1.5 text-xs text-slate-300 leading-relaxed">
                       {finding.description || finding.risk || 'Open service detected with potential exposure risk.'}
                     </p>
-                    <p className="mt-2 text-sm text-slate-400">
+                    <p className="mt-1.5 text-xs text-slate-400">
                       <span className="font-semibold text-slate-300">Recommendation:</span>{' '}
                       {finding.firewall_recommendation || finding.recommendation || 'Restrict access to trusted hosts and harden authentication.'}
                     </p>
@@ -365,28 +505,13 @@ export default function ScanResults({ scanId, data, loading }) {
                 );
               })}
             </div>
-          </motion.div>
+            {intelligence.findings?.length > topFindings.length && (
+              <div className="rounded-xl border border-slate-300/10 bg-slate-950/35 p-3 text-xs text-slate-500">
+                +{intelligence.findings.length - topFindings.length} more findings are available. This screen shows the highest-priority items only to keep the layout on one page.
+              </div>
+            )}
         </motion.div>
-      )}
-
-      {/* Host list */}
-      <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="space-y-4"
-      >
-        <h3 className="text-lg font-semibold text-white/90 mb-4 px-1">Detected Hosts</h3>
-        {hosts.length === 0 ? (
-          <motion.div variants={cardVariants} className="text-center py-16 text-slate-500 bg-zinc-900/40 border border-white/10 rounded-2xl backdrop-blur-md">
-            No live hosts responded in the targeted range.
-          </motion.div>
-        ) : (
-          hosts.map((host, i) => (
-            <HostCard key={host.ip ?? i} host={host} />
-          ))
-        )}
-      </motion.div>
+      </div>
     </div>
   );
 }
