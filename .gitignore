@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Python virtual environments
+.venv/
+venv/
+venve/
+backend/.venv/
+backend/venv/
+backend/venve/
+
+# Build outputs
+dist/
+build/
+frontend/dist/
+electron/dist/
+backend/dist/
+backend/build/
+
+# OS/editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Logs and caches
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+__pycache__/
+*.pyc
+
+# Packaged binaries/installers
+*.exe
+*.msi
+*.blockmap

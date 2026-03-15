@@ -1,6 +1,16 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://127.0.0.1:5000/api';
+
+function getApiError(error, fallback) {
+  return (
+    error.response?.data?.details
+    || error.response?.data?.error
+    || error.response?.data?.message
+    || error.message
+    || fallback
+  );
+}
 
 /**
  * Start a new security scan
@@ -11,7 +21,7 @@ const API_BASE = 'http://localhost:5000/api';
 export const startScan = async (networkRange, ports) => {
   try {
     const response = await axios.post(`${API_BASE}/scan/start`, {
-      networkRange,
+      network_range: networkRange,
       ports,
     });
     return { success: true, data: response.data, error: null };
@@ -19,7 +29,7 @@ export const startScan = async (networkRange, ports) => {
     return {
       success: false,
       data: null,
-      error: error.response?.data?.message || error.message || 'Failed to start scan',
+      error: getApiError(error, 'Failed to start scan'),
     };
   }
 };
@@ -37,7 +47,7 @@ export const getScanResults = async (scanId) => {
     return {
       success: false,
       data: null,
-      error: error.response?.data?.message || error.message || 'Failed to fetch scan results',
+      error: getApiError(error, 'Failed to fetch scan results'),
     };
   }
 };
@@ -55,7 +65,23 @@ export const getOwaspReport = async (scanId) => {
     return {
       success: false,
       data: null,
-      error: error.response?.data?.message || error.message || 'Failed to fetch OWASP report',
+      error: getApiError(error, 'Failed to fetch OWASP report'),
+    };
+  }
+};
+
+export const getPdfReport = async (scanId) => {
+  try {
+    const response = await axios.get(`${API_BASE}/reports/${scanId}/pdf`, {
+      responseType: 'arraybuffer',
+      timeout: 30000,
+    });
+    return { success: true, data: response.data, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      data: null,
+      error: getApiError(error, 'Failed to generate PDF report'),
     };
   }
 };
@@ -66,13 +92,13 @@ export const getOwaspReport = async (scanId) => {
  */
 export const checkHealth = async () => {
   try {
-    const response = await axios.get(`${API_BASE}/health`);
+    const response = await axios.get(`${API_BASE}/health`, { timeout: 3000 });
     return { success: true, data: response.data, error: null };
   } catch (error) {
     return {
       success: false,
       data: null,
-      error: error.response?.data?.message || error.message || 'Failed to check API health',
+      error: getApiError(error, 'Failed to check API health'),
     };
   }
 };

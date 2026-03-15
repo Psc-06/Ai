@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from io import BytesIO
+from typing import Any, Dict, List
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from pymongo.errors import PyMongoError
 
 import db_connector
 import cve_checker
 import owasp_mapper
+import report_generator
 import scanner
 
 
@@ -23,6 +25,26 @@ CORS(app)
 def handle_unexpected_error(error: Exception):
     """Return a consistent JSON response for unhandled exceptions."""
     return jsonify({"error": "Internal server error", "details": str(error)}), 500
+
+
+def _get_scan_document(scan_id: str) -> Dict[str, Any] | None:
+    """Fetch a scan document by id from MongoDB."""
+    db = db_connector.get_database()
+    scan_doc = db[db_connector.SCAN_RESULTS_COLLECTION].find_one({"scan_id": scan_id})
+    if scan_doc:
+        scan_doc.pop("_id", None)
+    return scan_doc
+
+
+def _get_owasp_findings(scan_id: str) -> List[Dict[str, Any]]:
+    """Fetch OWASP findings for a scan and remove MongoDB ids."""
+    db = db_connector.get_database()
+    findings_cursor = db[db_connector.OWASP_FINDINGS_COLLECTION].find({"scan_id": scan_id})
+    findings: List[Dict[str, Any]] = []
+    for finding in findings_cursor:
+        finding.pop("_id", None)
+        findings.append(finding)
+    return findings
 
 
 @app.route("/api/scan/start", methods=["POST"])
@@ -74,7 +96,7 @@ def get_scan_results(scan_id: str):
     """Fetch a stored scan result by scan_id, including CVE data on ports."""
     try:
         db = db_connector.get_database()
-        scan_doc = db[db_connector.SCAN_RESULTS_COLLECTION].find_one({"scan_id": scan_id})
+        scan_doc = _get_scan_document(scan_id)
 
         if not scan_doc:
             return jsonify({"error": "Scan result not found", "scan_id": scan_id}), 404
@@ -92,8 +114,6 @@ def get_scan_results(scan_id: str):
                 scan_doc,
             )
 
-        # ObjectId is not JSON serializable; hide MongoDB internal id.
-        scan_doc.pop("_id", None)
         return jsonify(scan_doc), 200
     except PyMongoError as exc:
         return jsonify({"error": "Database error", "details": str(exc)}), 500
@@ -103,15 +123,10 @@ def get_scan_results(scan_id: str):
 def get_owasp_report(scan_id: str):
     """Return OWASP categorized findings for a scan with summary counts."""
     try:
-        db = db_connector.get_database()
-        findings_cursor = db[db_connector.OWASP_FINDINGS_COLLECTION].find({"scan_id": scan_id})
-        findings = []
+        findings = _get_owasp_findings(scan_id)
         category_counts: Dict[str, int] = {}
 
-        for finding in findings_cursor:
-            finding.pop("_id", None)
-            findings.append(finding)
-
+        for finding in findings:
             category_name = str(finding.get("category", "Unknown"))
             category_counts[category_name] = category_counts.get(category_name, 0) + 1
 
@@ -136,6 +151,26 @@ def get_owasp_report(scan_id: str):
                 }
             ),
             200,
+        )
+    except PyMongoError as exc:
+        return jsonify({"error": "Database error", "details": str(exc)}), 500
+
+
+@app.route("/api/reports/<scan_id>/pdf", methods=["GET"])
+def export_pdf_report(scan_id: str):
+    """Generate a PDF report for a completed scan and return it as a download."""
+    try:
+        scan_doc = _get_scan_document(scan_id)
+        if not scan_doc:
+            return jsonify({"error": "Scan result not found", "scan_id": scan_id}), 404
+
+        findings = _get_owasp_findings(scan_id)
+        pdf_bytes = report_generator.build_pdf_report(scan_doc, findings)
+        return send_file(
+            BytesIO(pdf_bytes),
+            as_attachment=True,
+            download_name=f"{scan_id}-report.pdf",
+            mimetype="application/pdf",
         )
     except PyMongoError as exc:
         return jsonify({"error": "Database error", "details": str(exc)}), 500

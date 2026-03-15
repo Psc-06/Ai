@@ -1,0 +1,67 @@
+{
+  "name": "bankshield",
+  "version": "1.0.0",
+  "author": "BankShield",
+  "description": "BankShield — Network Security Scanner",
+  "main": "main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm --prefix ../frontend run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "start": "electron .",
+    "build": "npm run build:frontend && npm run build:backend && electron-builder --win --x64",
+    "build:backend": "node ./scripts/build-backend.js",
+    "build:frontend": "cd ../frontend && npm run build",
+    "pack": "npm run build:frontend && npm run build:backend && electron-builder --win --x64 --dir"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1",
+    "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.bankshield.scanner",
+    "productName": "BankShield",
+    "copyright": "Copyright © 2026 BankShield",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      {
+        "from": "../frontend/dist",
+        "to": "frontend/dist"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist/app",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BankShield"
+    }
+  }
+}
