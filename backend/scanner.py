@@ -80,7 +80,7 @@ def scan_network(ip_range: str, ports: str = DEFAULT_PORTS) -> Dict[str, Any]:
         raise RuntimeError("Nmap not installed or not found in PATH.") from exc
 
     try:
-        scanner.scan(hosts=ip_range, ports=ports, arguments="-sV")
+        scanner.scan(hosts=ip_range, ports=ports, arguments="-sV -T4 --max-retries 1")
     except nmap.PortScannerError as exc:
         msg = str(exc)
         if "Network is unreachable" in msg:

@@ -23,6 +23,10 @@ export const startScan = async (networkRange, ports) => {
     const response = await axios.post(`${API_BASE}/scan/start`, {
       network_range: networkRange,
       ports,
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
     return { success: true, data: response.data, error: null };
   } catch (error) {

@@ -1,22 +1,24 @@
+/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { Loader2, ShieldAlert, FileText, Info, Download, Maximize2, CheckCircle2 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getPdfReport } from '../services/api';
 
 const CATEGORY_COLORS = {
-  A01: '#ef4444',
-  A02: '#f97316',
-  A03: '#eab308',
-  A04: '#22c55e',
-  A05: '#3b82f6',
-  A06: '#8b5cf6',
-  A07: '#ec4899',
-  A08: '#14b8a6',
-  A09: '#f59e0b',
-  A10: '#64748b',
+  A01: '#ef4444', // Red
+  A02: '#f97316', // Orange
+  A03: '#eab308', // Yellow
+  A04: '#10b981', // Emerald
+  A05: '#3b82f6', // Blue
+  A06: '#8b5cf6', // Violet
+  A07: '#ec4899', // Pink
+  A08: '#14b8a6', // Teal
+  A09: '#f59e0b', // Amber
+  A10: '#94a3b8', // Slate
 };
 
 function barColor(category) {
@@ -27,11 +29,17 @@ function barColor(category) {
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm shadow-xl">
-      <p className="font-medium text-slate-200 mb-1">{label}</p>
-      <p className="text-blue-400">
-        {payload[0].value} finding{payload[0].value !== 1 ? 's' : ''}
-      </p>
+    <div className="bg-zinc-900/90 border border-white/10 rounded-xl px-4 py-3 text-sm shadow-2xl backdrop-blur-xl">
+      <p className="font-bold text-slate-200 mb-1.5">{label}</p>
+      <div className="flex items-center gap-2">
+        <div 
+          className="w-3 h-3 rounded-full" 
+          style={{ backgroundColor: payload[0].payload.fill || barColor(label), boxShadow: `0 0 8px ${payload[0].payload.fill || barColor(label)}` }} 
+        />
+        <p className="text-white font-mono font-bold tracking-wider">
+          {payload[0].value} <span className="text-slate-400 font-sans font-medium text-xs ml-1">VULN{payload[0].value !== 1 ? 'S' : ''}</span>
+        </p>
+      </div>
     </div>
   );
 };
@@ -42,32 +50,42 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-        <p>Loading OWASP report…</p>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-6 text-slate-400">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+          className="relative p-4"
+        >
+          <div className="absolute inset-0 border-2 border-blue-500/20 border-t-blue-500 rounded-full" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+        </motion.div>
+        <p className="font-mono text-sm tracking-widest text-blue-400/80 uppercase">Compiling Vulnerability Intel...</p>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-500">
-        <FileText className="h-12 w-12" />
-        <p>No OWASP report yet. Start a scan from the Scanner tab.</p>
-      </div>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="flex flex-col items-center justify-center h-[60vh] gap-5 text-slate-500"
+      >
+        <div className="p-5 rounded-full bg-slate-800/50 border border-white/5 relative group">
+          <FileText className="h-12 w-12 text-slate-600 relative z-10" />
+        </div>
+        <p className="font-medium">Threat intel unavailable. Awaiting scan completion.</p>
+      </motion.div>
     );
   }
 
   const categories = data.counts_by_category ?? data.categories ?? data.owasp_categories ?? {};
   const chartData = Object.entries(categories)
-    .map(([name, count]) => ({ name, count: Number(count) || 0 }))
+    .map(([name, count]) => ({ name, count: Number(count) || 0, fill: barColor(name) }))
     .sort((a, b) => b.count - a.count);
   const totalFindings = chartData.reduce((s, d) => s + d.count, 0);
 
   async function handleExport() {
-    if (!scanId || isExporting) {
-      return;
-    }
+    if (!scanId || isExporting) return;
 
     setIsExporting(true);
     setExportState({ type: null, message: '' });
@@ -79,7 +97,7 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
       return;
     }
 
-    const fileName = `${scanId}-report.pdf`;
+    const fileName = `${scanId}-owasp-report.pdf`;
     const electronAPI = window.electronAPI;
 
     try {
@@ -88,7 +106,7 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
         if (saveResult?.canceled) {
           setExportState({ type: null, message: '' });
         } else {
-          setExportState({ type: 'success', message: `Saved to ${saveResult.filePath}` });
+          setExportState({ type: 'success', message: `Intelligence exported to ${saveResult.filePath}` });
         }
       } else {
         const blob = new Blob([pdfData], { type: 'application/pdf' });
@@ -98,133 +116,187 @@ export default function OwaspReport({ scanId, data, loading, onToggleFullscreen 
         anchor.download = fileName;
         anchor.click();
         URL.revokeObjectURL(url);
-        setExportState({ type: 'success', message: 'Report download started.' });
+        setExportState({ type: 'success', message: 'Report download initiated.' });
       }
     } catch (saveError) {
-      setExportState({ type: 'error', message: saveError.message || 'Failed to save report.' });
+      setExportState({ type: 'error', message: saveError.message || 'Failed to export report.' });
     }
 
     setIsExporting(false);
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <motion.div 
+      initial="hidden" animate="visible" variants={containerVariants}
+      className="w-full space-y-8 pb-10"
+    >
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-6">
         <div>
-          <h2 className="text-2xl font-bold">OWASP Top 10 Report</h2>
+          <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+            OWASP Vulnerability Matrix
+          </h2>
           {scanId && (
-            <p className="text-slate-400 text-sm mt-1 font-mono">{scanId}</p>
+            <p className="text-blue-400/80 text-sm mt-2 font-mono flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              SESSION: {scanId}
+            </p>
           )}
         </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
+        <div className="flex flex-wrap gap-4">
+          <motion.button
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             onClick={handleExport}
             disabled={isExporting}
-            className="inline-flex items-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-300 transition hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-5 py-2.5 text-sm font-bold text-blue-300 transition-colors hover:bg-blue-500/20 hover:border-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
           >
             {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Save PDF Report
-          </button>
+            EXPORT PDF
+          </motion.button>
+          
           {window.electronAPI?.toggleFullscreen && (
-            <button
-              type="button"
+            <motion.button
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={onToggleFullscreen}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-700"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 hover:border-white/20"
             >
               <Maximize2 className="h-4 w-4" />
-              Fullscreen
-            </button>
+              FOCUS
+            </motion.button>
           )}
         </div>
       </div>
 
-      {exportState.message && (
-        <div className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${
-          exportState.type === 'success'
-            ? 'border-green-500/30 bg-green-950/30 text-green-200'
-            : 'border-red-500/30 bg-red-950/40 text-red-200'
-        }`}>
-          <CheckCircle2 className={`mt-0.5 h-5 w-5 flex-shrink-0 ${exportState.type === 'success' ? 'text-green-400' : 'hidden'}`} />
-          <Info className={`mt-0.5 h-5 w-5 flex-shrink-0 ${exportState.type === 'error' ? 'text-red-400' : 'hidden'}`} />
-          <span>{exportState.message}</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {exportState.message && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+            className={`flex items-start gap-3 rounded-xl border p-4 text-sm backdrop-blur-md ${
+              exportState.type === 'success'
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                : 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+            }`}
+          >
+            <CheckCircle2 className={`mt-0.5 h-5 w-5 flex-shrink-0 ${exportState.type === 'success' ? 'text-emerald-400' : 'hidden'}`} />
+            <Info className={`mt-0.5 h-5 w-5 flex-shrink-0 ${exportState.type === 'error' ? 'text-rose-400' : 'hidden'}`} />
+            <span className="font-medium tracking-wide">{exportState.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center">
-          <p className={`text-3xl font-bold ${totalFindings > 0 ? 'text-red-400' : 'text-green-400'}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <motion.div variants={itemVariants} className="bg-zinc-900/40 border border-white/10 rounded-2xl p-6 relative overflow-hidden backdrop-blur-md group shadow-xl">
+          <div className={`absolute -bottom-10 -right-10 w-32 h-32 rounded-full blur-3xl transition-colors ${totalFindings > 0 ? 'bg-red-500/10 group-hover:bg-red-500/20' : 'bg-emerald-500/10 group-hover:bg-emerald-500/20'}`} />
+          <p className="text-xs uppercase font-bold tracking-widest text-slate-500 mb-2">Total High-Risk Findings</p>
+          <p className={`text-5xl font-black tracking-tight drop-shadow-md ${totalFindings > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
             {totalFindings}
           </p>
-          <p className="text-slate-400 text-sm mt-1">Total Findings</p>
-        </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center">
-          <p className="text-3xl font-bold text-blue-400">{chartData.length}</p>
-          <p className="text-slate-400 text-sm mt-1">Categories Affected</p>
-        </div>
+        </motion.div>
+        
+        <motion.div variants={itemVariants} className="bg-zinc-900/40 border border-white/10 rounded-2xl p-6 relative overflow-hidden backdrop-blur-md group shadow-xl">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
+          <p className="text-xs uppercase font-bold tracking-widest text-slate-500 mb-2">Affected Vectors</p>
+          <p className="text-5xl font-black text-blue-400 tracking-tight drop-shadow-md">{chartData.length}</p>
+        </motion.div>
       </div>
 
       {/* Bar chart */}
       {chartData.length > 0 && (
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-          <h3 className="font-semibold mb-5 flex items-center gap-2 text-slate-200">
-            <ShieldAlert className="h-4 w-4 text-red-400" />
-            Findings by OWASP Category
+        <motion.div variants={itemVariants} className="bg-zinc-900/40 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-slate-500/5 rounded-full blur-3xl" />
+          <h3 className="font-bold text-lg mb-8 flex items-center gap-3 text-slate-200">
+            <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+              <ShieldAlert className="h-5 w-5 text-red-400" />
+            </div>
+            Threat Distribution
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 64, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: '#94a3b8', fontSize: 11 }}
-                angle={-35}
-                textAnchor="end"
-                interval={0}
-              />
-              <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} allowDecimals={false} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {chartData.map((entry) => (
-                  <Cell key={entry.name} fill={barColor(entry.name)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+          <div className="relative z-10 w-full h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 40, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                  angle={-25}
+                  textAnchor="end"
+                  interval={0}
+                  axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                  tickLine={false}
+                  dy={10}
+                />
+                <YAxis 
+                  tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} 
+                  allowDecimals={false} 
+                  axisLine={false} 
+                  tickLine={false}
+                  dx={-10}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
+                <Bar 
+                  dataKey="count" 
+                  radius={[6, 6, 0, 0]} 
+                  animationDuration={1500} 
+                  animationEasing="ease-out"
+                >
+                  {chartData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
       )}
 
       {/* Category list */}
       {chartData.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="font-semibold text-slate-300 mb-3">Category Breakdown</h3>
-          {chartData.map(({ name, count }) => (
-            <div
-              key={name}
-              className="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3"
-            >
-              <span
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: barColor(name) }}
-              />
-              <span className="flex-1 text-sm text-slate-300">{name}</span>
-              <span className="font-mono font-bold text-sm text-slate-200">{count}</span>
-              <span className="text-xs text-slate-500">finding{count !== 1 ? 's' : ''}</span>
-            </div>
-          ))}
-        </div>
+        <motion.div variants={itemVariants} className="space-y-3">
+          <h3 className="font-bold text-slate-300 mb-4 px-1 uppercase tracking-widest text-xs">Vector Breakdown</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {chartData.map(({ name, count, fill }) => (
+              <motion.div
+                key={name}
+                whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.08)' }}
+                className="flex items-center gap-4 bg-zinc-900/50 border border-white/5 rounded-xl px-5 py-4 cursor-default transition-colors"
+              >
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: fill, boxShadow: `0 0 10px ${fill}` }}
+                />
+                <span className="flex-1 font-semibold text-sm text-slate-200 truncate pr-2" title={name}>{name}</span>
+                <div className="flex flex-col items-end">
+                  <span className="font-mono font-black text-lg text-white drop-shadow-md">{count}</span>
+                  <span className="text-[10px] font-bold tracking-widest text-slate-500 uppercase">Hits</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
       )}
 
       {/* No findings */}
       {totalFindings === 0 && (
-        <div className="flex flex-col items-center justify-center py-14 gap-3 bg-slate-800 border border-slate-700 rounded-2xl">
-          <Info className="h-8 w-8 text-green-500" />
-          <p className="text-green-400 font-medium">No OWASP findings detected</p>
-          <p className="text-sm text-slate-500">
-            This scan found no vulnerabilities mapping to the OWASP Top 10.
+        <motion.div variants={itemVariants} className="flex flex-col items-center justify-center py-20 gap-4 bg-emerald-500/5 border border-emerald-500/20 rounded-3xl backdrop-blur-md relative overflow-hidden group">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/20 transition-colors" />
+          <div className="p-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 relative z-10">
+            <CheckCircle2 className="h-10 w-10 text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]" />
+          </div>
+          <p className="text-xl text-emerald-300 font-bold tracking-wide relative z-10">System Secure</p>
+          <p className="text-sm font-medium text-emerald-500/70 relative z-10">
+            Zero OWASP Top 10 vulnerabilities detected in the current vector.
           </p>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
